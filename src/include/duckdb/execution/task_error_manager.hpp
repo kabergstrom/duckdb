@@ -38,9 +38,12 @@ public:
 	}
 
 	void ThrowException() {
-		lock_guard<mutex> elock(error_lock);
-		D_ASSERT(!exceptions.empty());
-		auto &entry = exceptions[0];
+		ErrorData entry;
+		{
+			lock_guard<mutex> elock(error_lock);
+			D_ASSERT(!exceptions.empty());
+			entry = exceptions[0];
+		}
 		entry.Throw();
 	}
 
