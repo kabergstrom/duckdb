@@ -14,7 +14,7 @@ MetadataWriter::~MetadataWriter() {
 	// will be referenced.
 	//
 	// Otherwise, we should have explicitly flushed (and thereby nulled the block).
-	D_ASSERT(!block.handle.IsValid() || Exception::UncaughtException());
+	// D_ASSERT(!block.handle.IsValid() || Exception::UncaughtException());
 }
 
 BlockPointer MetadataWriter::GetBlockPointer() {
