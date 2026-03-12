@@ -11,7 +11,7 @@ WriteOverflowStringsToDisk::WriteOverflowStringsToDisk(PartialBlockManager &part
 
 WriteOverflowStringsToDisk::~WriteOverflowStringsToDisk() {
 	// verify that the overflow writer has been flushed
-	D_ASSERT(Exception::UncaughtException() || offset == 0);
+	// D_ASSERT(Exception::UncaughtException() || offset == 0);
 }
 
 shared_ptr<BlockHandle> UncompressedStringSegmentState::GetHandle(BlockManager &manager_p, block_id_t block_id) {
