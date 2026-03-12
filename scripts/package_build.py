@@ -266,7 +266,7 @@ def build_package(target_dir, extensions, linenumbers=False, unity_count=32, fol
 
     def copy_file(src, target_dir):
         # get the path
-        full_path = src.split(os.path.sep)
+        full_path = src.replace('/', os.sep).split(os.path.sep)
         current_path = target_dir
         for i in range(len(full_path) - 1):
             current_path = os.path.join(current_path, full_path[i])
