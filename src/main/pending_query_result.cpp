@@ -44,19 +44,44 @@ void PendingQueryResult::CheckExecutableInternal(ClientContextLock &lock) {
 }
 
 void PendingQueryResult::WaitForTask() {
-	auto lock = LockContext();
-	context->WaitForTask(*lock, *this);
+	ErrorData error;
+	{
+		auto lock = LockContext();
+		try {
+			context->WaitForTask(*lock, *this);
+			return;
+		} catch (std::exception &ex) {
+			error = ErrorData(ex);
+		}
+	}
+	error.Throw();
 }
 
 PendingExecutionResult PendingQueryResult::ExecuteTask() {
-	auto lock = LockContext();
-	return ExecuteTaskInternal(*lock);
+	ErrorData error;
+	{
+		auto lock = LockContext();
+		try {
+			return ExecuteTaskInternal(*lock);
+		} catch (std::exception &ex) {
+			error = ErrorData(ex);
+		}
+	}
+	error.Throw();
 }
 
 PendingExecutionResult PendingQueryResult::CheckPulse() {
-	auto lock = LockContext();
-	CheckExecutableInternal(*lock);
-	return context->ExecuteTaskInternal(*lock, *this, true);
+	ErrorData error;
+	{
+		auto lock = LockContext();
+		try {
+			CheckExecutableInternal(*lock);
+			return context->ExecuteTaskInternal(*lock, *this, true);
+		} catch (std::exception &ex) {
+			error = ErrorData(ex);
+		}
+	}
+	error.Throw();
 }
 
 bool PendingQueryResult::AllowStreamResult() const {
@@ -91,8 +116,16 @@ unique_ptr<QueryResult> PendingQueryResult::ExecuteInternal(ClientContextLock &l
 }
 
 unique_ptr<QueryResult> PendingQueryResult::Execute() {
-	auto lock = LockContext();
-	return ExecuteInternal(*lock);
+	ErrorData error;
+	{
+		auto lock = LockContext();
+		try {
+			return ExecuteInternal(*lock);
+		} catch (std::exception &ex) {
+			error = ErrorData(ex);
+		}
+	}
+	error.Throw();
 }
 
 void PendingQueryResult::Close() {

@@ -49,14 +49,31 @@ StreamExecutionResult StreamQueryResult::ExecuteTaskInternal(ClientContextLock &
 }
 
 StreamExecutionResult StreamQueryResult::ExecuteTask() {
-	auto lock = LockContext();
-	return ExecuteTaskInternal(*lock);
+	ErrorData error;
+	{
+		auto lock = LockContext();
+		try {
+			return ExecuteTaskInternal(*lock);
+		} catch (std::exception &ex) {
+			error = ErrorData(ex);
+		}
+	}
+	error.Throw();
 }
 
 void StreamQueryResult::WaitForTask() {
-	auto lock = LockContext();
-	buffered_data->UnblockSinks();
-	context->WaitForTask(*lock, *this);
+	ErrorData error;
+	{
+		auto lock = LockContext();
+		try {
+			buffered_data->UnblockSinks();
+			context->WaitForTask(*lock, *this);
+			return;
+		} catch (std::exception &ex) {
+			error = ErrorData(ex);
+		}
+	}
+	error.Throw();
 }
 
 static bool ExecutionErrorOccurred(StreamExecutionResult result) {
@@ -72,6 +89,7 @@ static bool ExecutionErrorOccurred(StreamExecutionResult result) {
 unique_ptr<DataChunk> StreamQueryResult::FetchInternal(ClientContextLock &lock) {
 	bool invalidate_query = true;
 	unique_ptr<DataChunk> chunk;
+	ErrorData error;
 	try {
 		// fetch the chunk and return it
 		auto stream_execution_result = buffered_data->ReplenishBuffer(*this, lock);
@@ -85,23 +103,24 @@ unique_ptr<DataChunk> StreamQueryResult::FetchInternal(ClientContextLock &lock) 
 		}
 		return chunk;
 	} catch (std::exception &ex) {
-		ErrorData error(ex);
-		if (!Exception::InvalidatesTransaction(error.Type())) {
-			// standard exceptions do not invalidate the current transaction
-			invalidate_query = false;
-		} else if (Exception::InvalidatesDatabase(error.Type())) {
-			// fatal exceptions invalidate the entire database
-			auto &config = context->config;
-			if (!config.query_verification_enabled) {
-				auto &db_instance = DatabaseInstance::GetDatabase(*context);
-				ValidChecker::Invalidate(db_instance, error.RawMessage());
-			}
-		}
-		context->ProcessError(error, context->GetCurrentQuery());
-		SetError(std::move(error));
+		error = ErrorData(ex);
 	} catch (...) { // LCOV_EXCL_START
-		SetError(ErrorData("Unhandled exception in FetchInternal"));
+		error = ErrorData("Unhandled exception in FetchInternal");
 	} // LCOV_EXCL_STOP
+	// Error handling moved outside catch to ensure MSVC releases locks during exception unwinding
+	if (!Exception::InvalidatesTransaction(error.Type())) {
+		// standard exceptions do not invalidate the current transaction
+		invalidate_query = false;
+	} else if (Exception::InvalidatesDatabase(error.Type())) {
+		// fatal exceptions invalidate the entire database
+		auto &config = context->config;
+		if (!config.query_verification_enabled) {
+			auto &db_instance = DatabaseInstance::GetDatabase(*context);
+			ValidChecker::Invalidate(db_instance, error.RawMessage());
+		}
+	}
+	context->ProcessError(error, context->GetCurrentQuery());
+	SetError(std::move(error));
 	context->CleanupInternal(lock, this, invalidate_query);
 	return nullptr;
 }
@@ -190,8 +209,16 @@ bool StreamQueryResult::IsOpen() {
 	if (!success || !context) {
 		return false;
 	}
-	auto lock = LockContext();
-	return IsOpenInternal(*lock);
+	ErrorData error;
+	{
+		auto lock = LockContext();
+		try {
+			return IsOpenInternal(*lock);
+		} catch (std::exception &ex) {
+			error = ErrorData(ex);
+		}
+	}
+	error.Throw();
 }
 
 void StreamQueryResult::Close() {
