@@ -4268,6 +4268,20 @@ Returns the child node at the specified index.
 */
 DUCKDB_C_API duckdb_profiling_info duckdb_profiling_info_get_child(duckdb_profiling_info info, idx_t index);
 
+/*!
+Returns the accumulated CPU time (in seconds) across all operators in the current query profile.
+Acquires the profiler lock for thread safety, making it suitable for mid-flight sampling.
+Returns 0.0 if profiling is not enabled or no profiling data is available.
+
+Requires that profiling is enabled on the connection:
+  SET enable_profiling = 'json';
+  SET custom_profiling_settings = '{"OPERATOR_CPU_TIME": "true", "CPU_TIME_ACTUAL": "true"}';
+
+* @param connection A connection object.
+* @return The accumulated CPU time in seconds.
+*/
+DUCKDB_C_API double duckdb_get_accumulated_cpu_time(duckdb_connection connection);
+
 //===--------------------------------------------------------------------===//
 // Appender
 //===--------------------------------------------------------------------===//

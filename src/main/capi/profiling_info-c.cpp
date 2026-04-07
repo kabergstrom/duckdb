@@ -4,8 +4,10 @@ using duckdb::Connection;
 using duckdb::DuckDB;
 using duckdb::EnumUtil;
 using duckdb::MetricsType;
+using duckdb::ClientContext;
 using duckdb::optional_ptr;
 using duckdb::ProfilingNode;
+using duckdb::QueryProfiler;
 
 duckdb_profiling_info duckdb_get_profiling_info(duckdb_connection connection) {
 	if (!connection) {
@@ -86,4 +88,41 @@ duckdb_profiling_info duckdb_profiling_info_get_child(duckdb_profiling_info info
 
 	ProfilingNode *profiling_info_ptr = node.GetChild(index).get();
 	return reinterpret_cast<duckdb_profiling_info>(profiling_info_ptr);
+}
+
+static double sum_operator_cpu_time(duckdb::ProfilingNode &node) {
+	double total = 0.0;
+	auto &info = node.GetProfilingInfo();
+	if (info.Enabled(info.settings, MetricsType::OPERATOR_CPU_TIME)) {
+		auto it = info.metrics.find(MetricsType::OPERATOR_CPU_TIME);
+		if (it != info.metrics.end()) {
+			total += it->second.GetValue<double>();
+		}
+	}
+	for (idx_t i = 0; i < node.GetChildCount(); i++) {
+		auto child = node.GetChild(i);
+		if (child) {
+			total += sum_operator_cpu_time(*child);
+		}
+	}
+	return total;
+}
+
+double duckdb_get_accumulated_cpu_time(duckdb_connection connection) {
+	if (!connection) {
+		return 0.0;
+	}
+	Connection *conn = reinterpret_cast<Connection *>(connection);
+	double result = 0.0;
+	try {
+		auto &profiler = QueryProfiler::Get(*conn->context);
+		profiler.GetRootUnderLock([&](optional_ptr<ProfilingNode> root) {
+			if (root) {
+				result = sum_operator_cpu_time(*root);
+			}
+		});
+	} catch (std::exception &) {
+		return 0.0;
+	}
+	return result;
 }
