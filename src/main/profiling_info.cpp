@@ -43,6 +43,7 @@ profiler_settings_t ProfilingInfo::DefaultSettings() {
 	        MetricsType::SYSTEM_PEAK_BUFFER_MEMORY,
 	        MetricsType::SYSTEM_PEAK_TEMP_DIR_SIZE,
 	        MetricsType::CPU_TIME,
+	        MetricsType::CPU_TIME_ACTUAL,
 	        MetricsType::EXTRA_INFO,
 	        MetricsType::CUMULATIVE_CARDINALITY,
 	        MetricsType::OPERATOR_NAME,
@@ -51,6 +52,7 @@ profiler_settings_t ProfilingInfo::DefaultSettings() {
 	        MetricsType::CUMULATIVE_ROWS_SCANNED,
 	        MetricsType::OPERATOR_ROWS_SCANNED,
 	        MetricsType::OPERATOR_TIMING,
+	        MetricsType::OPERATOR_CPU_TIME,
 	        MetricsType::RESULT_SET_SIZE,
 	        MetricsType::LATENCY,
 	        MetricsType::ROWS_RETURNED,
@@ -65,7 +67,7 @@ profiler_settings_t ProfilingInfo::DefaultRootSettings() {
 
 profiler_settings_t ProfilingInfo::DefaultOperatorSettings() {
 	return {MetricsType::OPERATOR_CARDINALITY, MetricsType::OPERATOR_ROWS_SCANNED, MetricsType::OPERATOR_TIMING,
-	        MetricsType::OPERATOR_NAME, MetricsType::OPERATOR_TYPE};
+	        MetricsType::OPERATOR_CPU_TIME, MetricsType::OPERATOR_NAME, MetricsType::OPERATOR_TYPE};
 }
 
 void ProfilingInfo::ResetMetrics() {
@@ -83,7 +85,9 @@ void ProfilingInfo::ResetMetrics() {
 		case MetricsType::LATENCY:
 		case MetricsType::BLOCKED_THREAD_TIME:
 		case MetricsType::CPU_TIME:
+		case MetricsType::CPU_TIME_ACTUAL:
 		case MetricsType::OPERATOR_TIMING:
+		case MetricsType::OPERATOR_CPU_TIME:
 			metrics[metric] = Value::CreateValue(0.0);
 			break;
 		case MetricsType::OPERATOR_NAME:
@@ -125,6 +129,9 @@ void ProfilingInfo::Expand(profiler_settings_t &settings, const MetricsType metr
 	switch (metric) {
 	case MetricsType::CPU_TIME:
 		settings.insert(MetricsType::OPERATOR_TIMING);
+		return;
+	case MetricsType::CPU_TIME_ACTUAL:
+		settings.insert(MetricsType::OPERATOR_CPU_TIME);
 		return;
 	case MetricsType::CUMULATIVE_CARDINALITY:
 		settings.insert(MetricsType::OPERATOR_CARDINALITY);
@@ -223,7 +230,9 @@ void ProfilingInfo::WriteMetricsToJSON(yyjson_mut_doc *doc, yyjson_mut_val *dest
 		case MetricsType::LATENCY:
 		case MetricsType::BLOCKED_THREAD_TIME:
 		case MetricsType::CPU_TIME:
-		case MetricsType::OPERATOR_TIMING: {
+		case MetricsType::CPU_TIME_ACTUAL:
+		case MetricsType::OPERATOR_TIMING:
+		case MetricsType::OPERATOR_CPU_TIME: {
 			yyjson_mut_obj_add_real(doc, dest, key_ptr, metrics[metric].GetValue<double>());
 			break;
 		}

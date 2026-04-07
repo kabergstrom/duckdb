@@ -270,6 +270,9 @@ void QueryProfiler::EndQuery() {
 			if (info.Enabled(settings, MetricsType::CPU_TIME)) {
 				GetCumulativeMetric<double>(*root, MetricsType::CPU_TIME, MetricsType::OPERATOR_TIMING);
 			}
+			if (info.Enabled(settings, MetricsType::CPU_TIME_ACTUAL)) {
+				GetCumulativeMetric<double>(*root, MetricsType::CPU_TIME_ACTUAL, MetricsType::OPERATOR_CPU_TIME);
+			}
 			if (info.Enabled(settings, MetricsType::CUMULATIVE_CARDINALITY)) {
 				GetCumulativeMetric<idx_t>(*root, MetricsType::CUMULATIVE_CARDINALITY,
 				                           MetricsType::OPERATOR_CARDINALITY);
@@ -436,6 +439,9 @@ void OperatorProfiler::StartOperator(optional_ptr<const PhysicalOperator> phys_o
 		if (ProfilingInfo::Enabled(settings, MetricsType::OPERATOR_TIMING)) {
 			op.Start();
 		}
+		if (ProfilingInfo::Enabled(settings, MetricsType::OPERATOR_CPU_TIME)) {
+			cpu_op.Start();
+		}
 	}
 }
 
@@ -452,6 +458,10 @@ void OperatorProfiler::EndOperator(optional_ptr<DataChunk> chunk) {
 		if (ProfilingInfo::Enabled(settings, MetricsType::OPERATOR_TIMING)) {
 			op.End();
 			info.AddTime(op.Elapsed());
+		}
+		if (ProfilingInfo::Enabled(settings, MetricsType::OPERATOR_CPU_TIME)) {
+			cpu_op.End();
+			info.AddCPUTime(cpu_op.Elapsed());
 		}
 		if (ProfilingInfo::Enabled(settings, MetricsType::OPERATOR_CARDINALITY) && chunk) {
 			info.AddReturnedElements(chunk->size());
@@ -539,6 +549,9 @@ void QueryProfiler::Flush(OperatorProfiler &profiler) {
 
 		if (ProfilingInfo::Enabled(profiler.settings, MetricsType::OPERATOR_TIMING)) {
 			info.MetricSum<double>(MetricsType::OPERATOR_TIMING, node.second.time);
+		}
+		if (ProfilingInfo::Enabled(profiler.settings, MetricsType::OPERATOR_CPU_TIME)) {
+			info.MetricSum<double>(MetricsType::OPERATOR_CPU_TIME, node.second.cpu_time);
 		}
 		if (ProfilingInfo::Enabled(profiler.settings, MetricsType::OPERATOR_CARDINALITY)) {
 			info.MetricSum<idx_t>(MetricsType::OPERATOR_CARDINALITY, node.second.elements_returned);

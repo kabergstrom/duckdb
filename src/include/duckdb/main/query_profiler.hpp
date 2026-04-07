@@ -43,6 +43,7 @@ struct OperatorInformation {
 	string name;
 
 	double time = 0;
+	double cpu_time = 0;
 	idx_t elements_returned = 0;
 	idx_t result_set_size = 0;
 	idx_t system_peak_buffer_manager_memory = 0;
@@ -52,6 +53,10 @@ struct OperatorInformation {
 
 	void AddTime(double n_time) {
 		time += n_time;
+	}
+
+	void AddCPUTime(double n_cpu_time) {
+		cpu_time += n_cpu_time;
 	}
 
 	void AddReturnedElements(idx_t n_elements) {
@@ -107,6 +112,8 @@ private:
 
 	//! The timer used to time the execution time of the individual Physical Operators
 	Profiler op;
+	//! Thread CPU time profiler for measuring actual CPU time per operator
+	ThreadCPUProfiler cpu_op;
 	//! The stack of Physical Operators that are currently active
 	optional_ptr<const PhysicalOperator> active_operator;
 	//! A mapping of physical operators to profiled operator information.

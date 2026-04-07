@@ -1,4 +1,4 @@
-# name: test/sql/pragma/profiling/test_custom_profiling_optimizer.test
+# name: ..\test\sql\pragma\profiling\test_custom_profiling_optimizer.test
 # description: Test custom optimizer profiling settings.
 # group: [profiling]
 
@@ -171,11 +171,13 @@ SELECT unnest(res) FROM (
 ----
 "BLOCKED_THREAD_TIME": "true"
 "CPU_TIME": "true"
+"CPU_TIME_ACTUAL": "true"
 "CUMULATIVE_CARDINALITY": "true"
 "CUMULATIVE_ROWS_SCANNED": "true"
 "EXTRA_INFO": "true"
 "LATENCY": "true"
 "OPERATOR_CARDINALITY": "true"
+"OPERATOR_CPU_TIME": "true"
 "OPERATOR_NAME": "true"
 "OPERATOR_ROWS_SCANNED": "true"
 "OPERATOR_TIMING": "true"
