@@ -1,0 +1,64 @@
+# name: test/parquet/variant/variant_short_string_boundary.test
+# description: Test writing VARIANT strings around the 64-byte short string limit to parquet
+# group: [variant]
+
+require parquet
+
+require json
+
+statement ok
+CREATE TABLE t AS SELECT * FROM (VALUES
+	(1, 1::VARIANT),
+	(2, 2::VARIANT),
+	(3, 3::VARIANT),
+	(4, repeat('a', 63)::VARIANT),
+	(5, repeat('x', 64)::VARIANT),
+	(6, repeat('z', 65)::VARIANT)
+) t(id, v);
+
+statement ok
+COPY t TO '__TEST_DIR__/variant_short_string_boundary.parquet' (FORMAT PARQUET);
+
+query IIII
+SELECT id, variant_typeof(p.v), len(p.v::VARCHAR), p.v = t.v
+FROM read_parquet('__TEST_DIR__/variant_short_string_boundary.parquet') p JOIN t USING (id)
+ORDER BY id;
+----
+1	INT32	1	true
+2	INT32	1	true
+3	INT32	1	true
+4	VARCHAR	63	true
+5	VARCHAR	64	true
+6	VARCHAR	65	true
+
+# A typed shredding hint keeps these mixed-shape strings in the binary value.
+# UTF-8 lengths must count bytes, including strings nested in objects/arrays.
+statement ok
+CREATE TABLE nested_strings AS
+SELECT 'ascii_' || n AS label,
+       json_array(json_object('stat', repeat('x', n), 'frames', 55070)) AS raw
+FROM (VALUES (0), (63), (64), (65), (127), (128), (129)) AS lengths(n)
+UNION ALL
+SELECT 'utf8_' || n,
+       json_array(json_object('stat', repeat('é', n), 'frames', 55070))
+FROM (VALUES (31), (32), (33)) AS lengths(n)
+UNION ALL
+SELECT 'object', json_object('label', repeat('k', 64), 'nested', json_array(repeat('z', 64)))
+UNION ALL
+SELECT 'scalar', to_json(repeat('s', 64))
+UNION ALL
+SELECT 'null', 'null'::JSON;
+
+statement ok
+COPY (SELECT label, raw::VARIANT AS v FROM nested_strings)
+TO '__TEST_DIR__/variant_nested_string_boundary.parquet'
+(FORMAT PARQUET, SHREDDING {v: 'STRUCT(x BIGINT)'});
+
+query I
+SELECT count(*)
+FROM read_parquet('__TEST_DIR__/variant_nested_string_boundary.parquet') p
+JOIN nested_strings t USING (label)
+WHERE NOT json_contains(p.v::JSON, t.raw)
+   OR NOT json_contains(t.raw, p.v::JSON);
+----
+0
